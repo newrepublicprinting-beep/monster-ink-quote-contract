@@ -1,0 +1,19 @@
+{
+  "name": "@monsterink/quote-contract",
+  "version": "0.1.0",
+  "description": "Shared Zod schemas + TypeScript types for the Monster Ink Tees quote-request data contract (customer intake app <-> internal price quoter).",
+  "private": false,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist", "src"],
+  "scripts": {
+    "build": "tsc",
+    "prepare": "npm run build"
+  },
+  "dependencies": {
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  }
+}
