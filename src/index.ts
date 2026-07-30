@@ -14,7 +14,7 @@ import { z } from "zod";
 // or its meaning changes, and update both consuming apps together.
 // ============================================================================
 
-export const CONTRACT_VERSION = "0.1.1";
+export const CONTRACT_VERSION = "0.2.0";
 
 export const YesNoSchema = z.enum(["Yes", "No"]);
 export type YesNo = z.infer<typeof YesNoSchema>;
@@ -31,6 +31,25 @@ export const HOW_HEARD_OPTIONS = [
   "Other",
 ] as const;
 export type HowHeard = (typeof HOW_HEARD_OPTIONS)[number];
+
+// --- Shirt style categories (garments only) ---------------------------------
+//
+// A simplified first-choice category so a customer who doesn't know a brand
+// name ("I just want a t-shirt") can narrow the multi-thousand-style catalog
+// down before browsing/searching specific styles. Mirrors garment_type in
+// the catalog schema. "Other" is a UI-only escape hatch (free-typed style
+// description, not tied to a catalog lookup) so it is intentionally not
+// part of this list — apps should treat any non-empty shirtStyle outside
+// this list as a free-text "Other" description.
+export const SHIRT_STYLE_OPTIONS = [
+  "T-Shirt",
+  "Long Sleeve T-Shirt",
+  "Sweatshirt",
+  "Hoodie",
+  "Polo Shirt",
+  "Tank Top",
+] as const;
+export type ShirtStyle = (typeof SHIRT_STYLE_OPTIONS)[number];
 
 // --- Print locations (garments only) ---------------------------------------
 
@@ -68,6 +87,9 @@ export function defaultPrintLocations(): PrintLocationSelection[] {
 
 export const GarmentLineItemSchema = z.object({
   id: z.string(),
+  // Simplified first-choice category (see SHIRT_STYLE_OPTIONS above), or a
+  // free-typed "Other" description. Empty string means not yet chosen.
+  shirtStyle: z.string().optional(),
   // Internal garments.id (uuid) once a real catalog style is picked — lets
   // the quoter side match this exactly, no fuzzy search needed.
   garmentId: z.string().optional(),
@@ -88,6 +110,7 @@ export type GarmentLineItem = z.infer<typeof GarmentLineItemSchema>;
 export function newGarmentLine(id: string): GarmentLineItem {
   return {
     id,
+    shirtStyle: "",
     garmentId: "",
     styleCode: "",
     styleName: "",
