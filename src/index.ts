@@ -5,26 +5,28 @@ import { z } from "zod";
 //
 // This is the single source of truth for the shape of a customer-submitted
 // quote request, shared between:
-//   - the public customer intake app (produces this data on submit)
-//   - the internal price quoter app (reads it back out of `quote_requests
-//     .raw_data`, both to display it and to seed a new quote)
+// - the public customer intake app (produces this data on submit)
+// - the internal price quoter app (reads it back out of `quote_requests
+//   .raw_data`, both to display it and to seed a new quote)
 //
 // Both apps depend on this package instead of maintaining their own copies
 // of these types. Bump CONTRACT_VERSION whenever a field is added, removed,
 // or its meaning changes, and update both consuming apps together.
 // ============================================================================
 
-export const CONTRACT_VERSION = "0.1.0";
+export const CONTRACT_VERSION = "0.1.1";
 
 export const YesNoSchema = z.enum(["Yes", "No"]);
 export type YesNo = z.infer<typeof YesNoSchema>;
 
+// "Returning Customer" was removed as an option here — returning customers
+// (returningCustomer === "Yes") no longer see this question on the intake
+// form at all, so it would only ever have been a stray/legacy answer.
 export const HOW_HEARD_OPTIONS = [
   "Prior New Republic Customer",
   "Google Search",
   "Referral / Word of Mouth",
   "Social Media (Instagram/Facebook/TikTok)",
-  "Returning Customer",
   "Trade Show / Event",
   "Other",
 ] as const;
