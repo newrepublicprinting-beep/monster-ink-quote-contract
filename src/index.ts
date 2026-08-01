@@ -14,7 +14,7 @@ import { z } from "zod";
 // or its meaning changes, and update both consuming apps together.
 // ============================================================================
 
-export const CONTRACT_VERSION = "0.4.0";
+export const CONTRACT_VERSION = "0.5.0";
 
 export const YesNoSchema = z.enum(["Yes", "No"]);
 export type YesNo = z.infer<typeof YesNoSchema>;
@@ -50,6 +50,16 @@ export const SHIRT_STYLE_OPTIONS = [
   "Tank Top",
 ] as const;
 export type ShirtStyle = (typeof SHIRT_STYLE_OPTIONS)[number];
+
+// --- Garment quality tier (garments only) -----------------------------------
+//
+// A simple Good/Better/Best quality bucket, admin-tagged per catalog style in
+// Settings > Garment Catalog (see Garment.tier in the quoter's types). Asked
+// on the customer form BEFORE any other garment question (shirt style,
+// color, etc.) and used purely to narrow which catalog styles show up next
+// — it has no pricing effect on its own. Empty string means not yet chosen.
+export const GARMENT_TIER_OPTIONS = ["Good", "Better", "Best"] as const;
+export type GarmentTier = (typeof GARMENT_TIER_OPTIONS)[number];
 
 // --- Print locations (garments only) ---------------------------------------
 
@@ -119,6 +129,10 @@ export type GarmentColorSize = z.infer<typeof GarmentColorSizeSchema>;
 
 export const GarmentLineItemSchema = z.object({
   id: z.string(),
+  // Good/Better/Best quality bucket — asked before any other garment
+  // question and used to filter which catalog styles show up next. Empty
+  // string means not yet chosen.
+  tier: z.string().optional(),
   // Simplified first-choice category (see SHIRT_STYLE_OPTIONS above), or a
   // free-typed "Other" description. Empty string means not yet chosen.
   shirtStyle: z.string().optional(),
@@ -144,6 +158,7 @@ export type GarmentLineItem = z.infer<typeof GarmentLineItemSchema>;
 export function newGarmentLine(id: string): GarmentLineItem {
   return {
     id,
+    tier: "",
     shirtStyle: "",
     garmentId: "",
     styleCode: "",
