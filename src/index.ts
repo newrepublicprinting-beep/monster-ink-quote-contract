@@ -14,7 +14,7 @@ import { z } from "zod";
 // or its meaning changes, and update both consuming apps together.
 // ============================================================================
 
-export const CONTRACT_VERSION = "0.5.0";
+export const CONTRACT_VERSION = "0.6.0";
 
 export const YesNoSchema = z.enum(["Yes", "No"]);
 export type YesNo = z.infer<typeof YesNoSchema>;
@@ -71,25 +71,44 @@ export const PrintLocationKeySchema = z.enum([
 ]);
 export type PrintLocationKey = z.infer<typeof PrintLocationKeySchema>;
 
+// A screen-print job needs one screen per ink color at a location. Past this
+// many colors, screen printing stops being practical/cost-effective and the
+// shop runs it as a DTF (digital transfer) print instead. The customer
+// intake form caps the "how many colors" input at this number per location;
+// the quoter's pricing engine (see pricing.ts in print-shop-quoter) treats
+// any location reporting MORE than this many colors (e.g. from a PO upload
+// or a salesperson's manual entry) as an automatic, silent switch to DTF —
+// no confirmation prompt, since DTF is simply the correct production method
+// once this many colors + screens are no longer viable.
+export const MAX_SCREEN_PRINT_COLORS = 8;
+
 // widthIn/heightIn allow "" as the "not yet typed" state in a controlled
 // number input on the intake form; by submission time these should be real
 // numbers, but the schema tolerates "" so partial in-progress form state can
-// still be validated against the same shape if needed.
+// still be validated against the same shape if needed. `colors` (how many
+// ink colors the customer wants at this location) works the same way —
+// capped at MAX_SCREEN_PRINT_COLORS in the intake form's UI (see
+// garment-section.tsx), but left as a plain number here (not `.max()`-
+// enforced in the schema) so it stays interchangeable with the quoter-side
+// PrintLocationInput.colors, which legitimately CAN exceed this cap (PO
+// extraction, salesperson override) and simply triggers the automatic DTF
+// switch instead of being rejected.
 export const PrintLocationSelectionSchema = z.object({
   key: PrintLocationKeySchema,
   label: z.string(),
   enabled: z.boolean(),
   widthIn: z.union([z.number(), z.literal("")]),
   heightIn: z.union([z.number(), z.literal("")]),
+  colors: z.union([z.number(), z.literal("")]),
 });
 export type PrintLocationSelection = z.infer<typeof PrintLocationSelectionSchema>;
 
 export function defaultPrintLocations(): PrintLocationSelection[] {
   return [
-    { key: "front", label: "Front", enabled: true, widthIn: 12, heightIn: 15 },
-    { key: "back", label: "Back", enabled: false, widthIn: 12, heightIn: 15 },
-    { key: "left_sleeve", label: "Left Sleeve", enabled: false, widthIn: 3, heightIn: 4 },
-    { key: "right_sleeve", label: "Right Sleeve", enabled: false, widthIn: 3, heightIn: 4 },
+    { key: "front", label: "Front", enabled: true, widthIn: 12, heightIn: 15, colors: 1 },
+    { key: "back", label: "Back", enabled: false, widthIn: 12, heightIn: 15, colors: 1 },
+    { key: "left_sleeve", label: "Left Sleeve", enabled: false, widthIn: 3, heightIn: 4, colors: 1 },
+    { key: "right_sleeve", label: "Right Sleeve", enabled: false, widthIn: 3, heightIn: 4, colors: 1 },
   ];
 }
 
