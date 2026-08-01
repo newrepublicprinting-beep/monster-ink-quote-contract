@@ -14,7 +14,7 @@ import { z } from "zod";
 // or its meaning changes, and update both consuming apps together.
 // ============================================================================
 
-export const CONTRACT_VERSION = "0.2.0";
+export const CONTRACT_VERSION = "0.3.0";
 
 export const YesNoSchema = z.enum(["Yes", "No"]);
 export type YesNo = z.infer<typeof YesNoSchema>;
@@ -83,7 +83,26 @@ export function defaultPrintLocations(): PrintLocationSelection[] {
   ];
 }
 
-// --- Garments ----------------------------------------------------------------
+// --- Artwork files (all product line items) --------------------------------
+//
+// Every product line item (garment, hat, sticker, button, patch) can carry
+// its own artwork files, uploaded directly from the customer's browser to
+// our Vercel Blob store (see step-artwork.tsx / item-art-upload.tsx in the
+// customer intake app) and tagged with which specific item they belong to.
+// This replaces the old per-category Box file-request embeds, which just
+// dumped files into a shared Box folder with no link back to the order —
+// staff had to guess which uploaded file belonged to which line item by
+// filename alone. Multiple files are allowed per item (e.g. a vector file
+// plus a reference photo for the same garment).
+export const ArtworkFileSchema = z.object({
+  blobUrl: z.string(),
+  filename: z.string(),
+  mimeType: z.string().optional(),
+  fileSize: z.number().optional(),
+});
+export type ArtworkFile = z.infer<typeof ArtworkFileSchema>;
+
+// --- Garments -----------------------------------------------------------------
 
 export const GarmentLineItemSchema = z.object({
   id: z.string(),
@@ -103,6 +122,10 @@ export const GarmentLineItemSchema = z.object({
   // (fetched per style) — not a fixed universal size list.
   sizes: z.record(z.string(), z.number()),
   printLocations: z.array(PrintLocationSelectionSchema),
+  // Artwork uploaded specifically for THIS garment line — required when a
+  // customer orders multiple garments with different designs, so staff can
+  // tell which file goes with which shirt instead of one bundled pile.
+  artworkFiles: z.array(ArtworkFileSchema).default([]),
   otherInfo: z.string().optional(),
 });
 export type GarmentLineItem = z.infer<typeof GarmentLineItemSchema>;
@@ -118,6 +141,7 @@ export function newGarmentLine(id: string): GarmentLineItem {
     preferredBrand: "",
     sizes: {},
     printLocations: defaultPrintLocations(),
+    artworkFiles: [],
     otherInfo: "",
   };
 }
@@ -126,7 +150,7 @@ export function garmentTotalQty(sizes: Record<string, number>): number {
   return Object.values(sizes).reduce((sum, v) => sum + (Number(v) || 0), 0);
 }
 
-// --- Hats ---------------------------------------------------------------------
+// --- Hats ----------------------------------------------------------------------
 
 export const HatLineItemSchema = z.object({
   id: z.string(),
@@ -134,8 +158,7 @@ export const HatLineItemSchema = z.object({
   styleName: z.string(),
   colors: z.string(),
   preferredBrand: z.string().optional(),
-  artworkFileUrl: z.string().optional(),
-  artworkFileName: z.string().optional(),
+  artworkFiles: z.array(ArtworkFileSchema).default([]),
   otherInfo: z.string().optional(),
 });
 export type HatLineItem = z.infer<typeof HatLineItemSchema>;
@@ -149,8 +172,7 @@ export const StickerLineItemSchema = z.object({
   heightInches: numberOrEmpty,
   lengthInches: numberOrEmpty,
   quantity: numberOrEmpty,
-  artworkFileUrl: z.string().optional(),
-  artworkFileName: z.string().optional(),
+  artworkFiles: z.array(ArtworkFileSchema).default([]),
   otherInfo: z.string().optional(),
 });
 export type StickerLineItem = z.infer<typeof StickerLineItemSchema>;
@@ -165,8 +187,7 @@ export const ButtonLineItemSchema = z.object({
   id: z.string(),
   size: ButtonSizeSchema,
   quantity: numberOrEmpty,
-  artworkFileUrl: z.string().optional(),
-  artworkFileName: z.string().optional(),
+  artworkFiles: z.array(ArtworkFileSchema).default([]),
   otherInfo: z.string().optional(),
 });
 export type ButtonLineItem = z.infer<typeof ButtonLineItemSchema>;
@@ -178,13 +199,12 @@ export const PatchLineItemSchema = z.object({
   heightInches: numberOrEmpty,
   lengthInches: numberOrEmpty,
   quantity: numberOrEmpty,
-  artworkFileUrl: z.string().optional(),
-  artworkFileName: z.string().optional(),
+  artworkFiles: z.array(ArtworkFileSchema).default([]),
   otherInfo: z.string().optional(),
 });
 export type PatchLineItem = z.infer<typeof PatchLineItemSchema>;
 
-// --- Full request -------------------------------------------------------------
+// --- Full request --------------------------------------------------------------
 
 export const ProductCategorySchema = z.enum([
   "garments",
