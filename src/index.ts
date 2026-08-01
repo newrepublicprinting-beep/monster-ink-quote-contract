@@ -14,7 +14,7 @@ import { z } from "zod";
 // or its meaning changes, and update both consuming apps together.
 // ============================================================================
 
-export const CONTRACT_VERSION = "0.3.0";
+export const CONTRACT_VERSION = "0.4.0";
 
 export const YesNoSchema = z.enum(["Yes", "No"]);
 export type YesNo = z.infer<typeof YesNoSchema>;
@@ -104,6 +104,19 @@ export type ArtworkFile = z.infer<typeof ArtworkFileSchema>;
 
 // --- Garments -----------------------------------------------------------------
 
+// One selected color for a garment line, with its OWN per-size quantity
+// breakdown. A garment ordered in 2 colors (e.g. Black and White) gets 2 of
+// these — e.g. { color: "Black", sizes: { S: 12, M: 12 } } and
+// { color: "White", sizes: { L: 12, "2XL": 12 } } — instead of one shared
+// size total across every color, which made it impossible to tell how many
+// of each size should be Black vs. White.
+export const GarmentColorSizeSchema = z.object({
+  color: z.string(),
+  // Keyed by whatever size names this specific style actually offers.
+  sizes: z.record(z.string(), z.number()),
+});
+export type GarmentColorSize = z.infer<typeof GarmentColorSizeSchema>;
+
 export const GarmentLineItemSchema = z.object({
   id: z.string(),
   // Simplified first-choice category (see SHIRT_STYLE_OPTIONS above), or a
@@ -114,13 +127,11 @@ export const GarmentLineItemSchema = z.object({
   garmentId: z.string().optional(),
   styleCode: z.string(),
   styleName: z.string(),
-  // Real colors this style actually comes in (from the catalog's color
-  // list), or free-typed entries for the rare style with no color list yet.
-  colors: z.array(z.string()),
+  // One entry per color the customer selected for this garment, each with
+  // its own size breakdown (see GarmentColorSizeSchema above). Replaces the
+  // old flat colors[] + single shared sizes map.
+  colorSizes: z.array(GarmentColorSizeSchema),
   preferredBrand: z.string().optional(),
-  // Keyed by whatever size names this specific style actually offers
-  // (fetched per style) — not a fixed universal size list.
-  sizes: z.record(z.string(), z.number()),
   printLocations: z.array(PrintLocationSelectionSchema),
   // Artwork uploaded specifically for THIS garment line — required when a
   // customer orders multiple garments with different designs, so staff can
@@ -137,17 +148,19 @@ export function newGarmentLine(id: string): GarmentLineItem {
     garmentId: "",
     styleCode: "",
     styleName: "",
-    colors: [],
+    colorSizes: [],
     preferredBrand: "",
-    sizes: {},
     printLocations: defaultPrintLocations(),
     artworkFiles: [],
     otherInfo: "",
   };
 }
 
-export function garmentTotalQty(sizes: Record<string, number>): number {
-  return Object.values(sizes).reduce((sum, v) => sum + (Number(v) || 0), 0);
+export function garmentTotalQty(colorSizes: GarmentColorSize[]): number {
+  return colorSizes.reduce(
+    (total, cs) => total + Object.values(cs.sizes).reduce((sum, v) => sum + (Number(v) || 0), 0),
+    0,
+  );
 }
 
 // --- Hats ----------------------------------------------------------------------
