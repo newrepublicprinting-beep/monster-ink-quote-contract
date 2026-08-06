@@ -14,7 +14,7 @@ import { z } from "zod";
 // or its meaning changes, and update both consuming apps together.
 // ============================================================================
 
-export const CONTRACT_VERSION = "0.6.0";
+export const CONTRACT_VERSION = "0.7.0";
 
 export const YesNoSchema = z.enum(["Yes", "No"]);
 export type YesNo = z.infer<typeof YesNoSchema>;
@@ -93,25 +93,6 @@ export const MAX_SCREEN_PRINT_COLORS = 8;
 // PrintLocationInput.colors, which legitimately CAN exceed this cap (PO
 // extraction, salesperson override) and simply triggers the automatic DTF
 // switch instead of being rejected.
-export const PrintLocationSelectionSchema = z.object({
-  key: PrintLocationKeySchema,
-  label: z.string(),
-  enabled: z.boolean(),
-  widthIn: z.union([z.number(), z.literal("")]),
-  heightIn: z.union([z.number(), z.literal("")]),
-  colors: z.union([z.number(), z.literal("")]),
-});
-export type PrintLocationSelection = z.infer<typeof PrintLocationSelectionSchema>;
-
-export function defaultPrintLocations(): PrintLocationSelection[] {
-  return [
-    { key: "front", label: "Front", enabled: true, widthIn: 12, heightIn: 15, colors: 1 },
-    { key: "back", label: "Back", enabled: false, widthIn: 12, heightIn: 15, colors: 1 },
-    { key: "left_sleeve", label: "Left Sleeve", enabled: false, widthIn: 3, heightIn: 4, colors: 1 },
-    { key: "right_sleeve", label: "Right Sleeve", enabled: false, widthIn: 3, heightIn: 4, colors: 1 },
-  ];
-}
-
 // --- Artwork files (all product line items) --------------------------------
 //
 // Every product line item (garment, hat, sticker, button, patch) can carry
@@ -130,6 +111,34 @@ export const ArtworkFileSchema = z.object({
   fileSize: z.number().optional(),
 });
 export type ArtworkFile = z.infer<typeof ArtworkFileSchema>;
+
+// artworkFiles lives HERE (per print location) rather than once per garment
+// -- a shirt with a front AND a back design needs two separate art uploads,
+// one per location, exactly like the physical screens/production work is
+// split. Added in CONTRACT_VERSION 0.7.0; the customer intake form now
+// renders one upload box per enabled location instead of a single box for
+// the whole garment (see garment-section.tsx). GarmentLineItem.artworkFiles
+// (below) is kept only as a legacy fallback for requests submitted before
+// this change -- new submissions leave it empty and use this field instead.
+export const PrintLocationSelectionSchema = z.object({
+  key: PrintLocationKeySchema,
+  label: z.string(),
+  enabled: z.boolean(),
+  widthIn: z.union([z.number(), z.literal("")]),
+  heightIn: z.union([z.number(), z.literal("")]),
+  colors: z.union([z.number(), z.literal("")]),
+  artworkFiles: z.array(ArtworkFileSchema).default([]),
+});
+export type PrintLocationSelection = z.infer<typeof PrintLocationSelectionSchema>;
+
+export function defaultPrintLocations(): PrintLocationSelection[] {
+  return [
+    { key: "front", label: "Front", enabled: true, widthIn: 12, heightIn: 15, colors: 1, artworkFiles: [] },
+    { key: "back", label: "Back", enabled: false, widthIn: 12, heightIn: 15, colors: 1, artworkFiles: [] },
+    { key: "left_sleeve", label: "Left Sleeve", enabled: false, widthIn: 3, heightIn: 4, colors: 1, artworkFiles: [] },
+    { key: "right_sleeve", label: "Right Sleeve", enabled: false, widthIn: 3, heightIn: 4, colors: 1, artworkFiles: [] },
+  ];
+}
 
 // --- Garments -----------------------------------------------------------------
 
@@ -166,9 +175,11 @@ export const GarmentLineItemSchema = z.object({
   colorSizes: z.array(GarmentColorSizeSchema),
   preferredBrand: z.string().optional(),
   printLocations: z.array(PrintLocationSelectionSchema),
-  // Artwork uploaded specifically for THIS garment line — required when a
-  // customer orders multiple garments with different designs, so staff can
-  // tell which file goes with which shirt instead of one bundled pile.
+  // DEPRECATED as of CONTRACT_VERSION 0.7.0 — artwork is now uploaded per
+  // print location (see PrintLocationSelection.artworkFiles above), since a
+  // garment with a front AND a back design needs two separate uploads. Kept
+  // here only so older stored quote_requests (pre-0.7.0) still validate;
+  // the intake form no longer writes to this field.
   artworkFiles: z.array(ArtworkFileSchema).default([]),
   otherInfo: z.string().optional(),
 });
